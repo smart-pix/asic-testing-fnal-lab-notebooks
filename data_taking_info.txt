@@ -1,0 +1,4 @@
+DIR path: /asic/projects/C/CMS_PIX_28/benjamin/testing/workarea/CMSPIX28_DAQ/spacely/PySpacely/data
+
+2024.10.10_18.59.56_vMin0.001_vMax0.100_vStep0.001_nSample500.000, 64 pixels programmed with gain 01 (Cinj = 1.85fF) and range covering bit0 and potentially some bit1
+
