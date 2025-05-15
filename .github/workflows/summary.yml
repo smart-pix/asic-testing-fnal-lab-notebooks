@@ -9,11 +9,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-      contents: write
+      models: read
+      contents: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+          gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Run AI inference
         id: inference
@@ -24,11 +31,17 @@ jobs:
             Title: ${{ github.event.issue.title }}
             Body: ${{ github.event.issue.body }}
 
-      - name: Debug Outputs
+      - name: Find existing AI summary comment
+        id: find-comment
         run: |
-          echo "Comment ID: ${{ steps.find-comment.outputs.comment_id }}"
-          echo "Issue Number: ${{ github.event.issue.number }}"
-      
+          COMMENTS=$(gh issue comments $ISSUE_NUMBER --json id,body)
+          COMMENT_ID=$(echo "$COMMENTS" | jq -r '.[] | select(.body | contains("[AI Summary]")) | .id' | head -n1)
+          echo "Found comment ID: $COMMENT_ID"
+          echo "comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+
       - name: Post or update AI summary comment
         run: |
           BODY="**[AI Summary]**\n\n${{ steps.inference.outputs.response }}"
