@@ -28,7 +28,7 @@ jobs:
       - name: Debug comments fetch
         run: |
           echo "Fetching comments for issue $ISSUE_NUMBER"
-          gh issue comments $ISSUE_NUMBER --json id,body || echo "Failed to fetch comments"
+          gh api repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments --jq '.[] | {id: .id, body: .body}' || echo "Failed to fetch comments"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -36,7 +36,7 @@ jobs:
       - name: Find existing AI summary comment
         id: find-comment
         run: |
-          COMMENTS=$(gh issue comments $ISSUE_NUMBER --json id,body)
+          COMMENTS=$(gh api repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments)
           COMMENT_ID=$(echo "$COMMENTS" | jq -r '.[] | select(.body | contains("[AI Summary]")) | .id' | head -n1)
           echo "Found comment ID: $COMMENT_ID"
           echo "comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
