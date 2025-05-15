@@ -1,8 +1,8 @@
-name: Summarize new issues
+name: Summarize new and edited issues
 
 on:
   issues:
-    types: [opened]
+    types: [opened, edited]
 
 jobs:
   summary:
@@ -25,10 +25,28 @@ jobs:
             Title: ${{ github.event.issue.title }}
             Body: ${{ github.event.issue.body }}
 
-      - name: Comment with AI summary
+      - name: Find existing AI summary comment
+        id: find-comment
         run: |
-          gh issue comment $ISSUE_NUMBER --body '${{ steps.inference.outputs.response }}'
+          COMMENTS=$(gh issue comments $ISSUE_NUMBER --json id,body)
+          COMMENT_ID=$(echo "$COMMENTS" | jq -r '.[] | select(.body | contains("[AI Summary]")) | .id' | head -n1)
+          echo "Found comment ID: $COMMENT_ID"
+          echo "comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          RESPONSE: ${{ steps.inference.outputs.response }}
+
+      - name: Post or update AI summary comment
+        run: |
+          BODY="**[AI Summary]**\n\n${{ steps.inference.outputs.response }}"
+          if [ -z "${{ steps.find-comment.outputs.comment_id }}" ]; then
+            echo "No existing summary comment found. Posting new comment."
+            gh issue comment $ISSUE_NUMBER --body "$BODY"
+          else
+            echo "Updating existing summary comment ID ${{ steps.find-comment.outputs.comment_id }}."
+            gh api repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }} \
+              -X PATCH -F body="$BODY"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
