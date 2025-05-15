@@ -9,8 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-      models: read
-      contents: read
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -25,17 +24,11 @@ jobs:
             Title: ${{ github.event.issue.title }}
             Body: ${{ github.event.issue.body }}
 
-      - name: Find existing AI summary comment
-        id: find-comment
+      - name: Debug Outputs
         run: |
-          COMMENTS=$(gh issue comments $ISSUE_NUMBER --json id,body)
-          COMMENT_ID=$(echo "$COMMENTS" | jq -r '.[] | select(.body | contains("[AI Summary]")) | .id' | head -n1)
-          echo "Found comment ID: $COMMENT_ID"
-          echo "comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-
+          echo "Comment ID: ${{ steps.find-comment.outputs.comment_id }}"
+          echo "Issue Number: ${{ github.event.issue.number }}"
+      
       - name: Post or update AI summary comment
         run: |
           BODY="**[AI Summary]**\n\n${{ steps.inference.outputs.response }}"
