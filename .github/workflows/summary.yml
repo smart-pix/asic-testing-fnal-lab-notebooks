@@ -16,12 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install GitHub CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gh
-          gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
-
       - name: Run AI inference
         id: inference
         uses: actions/ai-inference@v1
@@ -30,6 +24,14 @@ jobs:
             Summarize the following GitHub issue in one paragraph:
             Title: ${{ github.event.issue.title }}
             Body: ${{ github.event.issue.body }}
+
+      - name: Debug comments fetch
+        run: |
+          echo "Fetching comments for issue $ISSUE_NUMBER"
+          gh issue comments $ISSUE_NUMBER --json id,body || echo "Failed to fetch comments"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
 
       - name: Find existing AI summary comment
         id: find-comment
@@ -44,14 +46,19 @@ jobs:
 
       - name: Post or update AI summary comment
         run: |
+          set -e
           BODY="**[AI Summary]**\n\n${{ steps.inference.outputs.response }}"
           if [ -z "${{ steps.find-comment.outputs.comment_id }}" ]; then
             echo "No existing summary comment found. Posting new comment."
-            gh issue comment $ISSUE_NUMBER --body "$BODY"
+            if ! gh issue comment $ISSUE_NUMBER --body "$BODY"; then
+              echo "Failed to post a new comment."
+            fi
           else
             echo "Updating existing summary comment ID ${{ steps.find-comment.outputs.comment_id }}."
-            gh api repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }} \
-              -X PATCH -F body="$BODY"
+            if ! gh api repos/${{ github.repository }}/issues/comments/${{ steps.find-comment.outputs.comment_id }} \
+                -X PATCH -F body="$BODY"; then
+              echo "Failed to update the existing comment."
+            fi
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
