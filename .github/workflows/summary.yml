@@ -47,7 +47,7 @@ jobs:
       - name: Post or update AI summary comment
         run: |
           set -e
-          BODY="**[AI Summary]**\n\n${{ steps.inference.outputs.response }}"
+          BODY=$(printf "**[AI Summary]**\n\n%s" "${{ steps.inference.outputs.response }}")
           if [ -z "${{ steps.find-comment.outputs.comment_id }}" ]; then
             echo "No existing summary comment found. Posting new comment."
             if ! gh issue comment $ISSUE_NUMBER --body "$BODY"; then
